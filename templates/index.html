@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Autonomous Navigation</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0b1120;color:#e5edf9;padding:20px}
+main{max-width:700px;margin:auto}
+button,select{padding:10px;margin:4px;border-radius:6px;cursor:pointer}
+#grid{display:grid;grid-template-columns:repeat(20,1fr);gap:2px;max-width:600px;margin:20px auto}
+.cell{aspect-ratio:1;background:#dce6f3;cursor:pointer}
+.wall{background:#53647e}.start{background:#22c55e}
+.goal{background:#ef4444}.path{background:#facc15}.visited{background:#8bbcf5}
+.panel{background:#151f32;padding:16px;border-radius:12px}
+</style>
+</head>
+<body>
+<main>
+<h1>🤖 AI Autonomous Navigation</h1>
+<p>Interactive A* pathfinding simulation</p>
+<div class="panel">
+<select id="mode">
+<option value="wall">Add/remove obstacles</option>
+<option value="start">Set start</option>
+<option value="goal">Set destination</option>
+</select>
+<button onclick="findPath()">Find path</button>
+<button onclick="randomWalls()">Random obstacles</button>
+<button onclick="resetGrid()">Reset</button>
+<div id="grid"></div>
+<p id="status">Select points and calculate a route.</p>
+<p id="stats"></p>
+<p>🟩 Start　🟥 Destination　⬛ Obstacle　🟨 Route</p>
+</div>
+</main>
+<script>
+const N=20;
+let start=[1,1],goal=[18,18],walls=new Set(),path=[],visited=[];
+const key=p=>p.join(",");
+const inside=([r,c])=>r>=0&&r<N&&c>=0&&c<N;
+
+function draw(){
+ const el=document.getElementById("grid");el.innerHTML="";
+ for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+  const p=[r,c],k=key(p),d=document.createElement("div");
+  d.className="cell";
+  if(walls.has(k))d.classList.add("wall");
+  if(visited.includes(k))d.classList.add("visited");
+  if(path.some(x=>key(x)===k))d.classList.add("path");
+  if(k===key(start))d.className="cell start";
+  if(k===key(goal))d.className="cell goal";
+  d.onclick=()=>{
+   const mode=document.getElementById("mode").value;
+   if(mode==="start"&&!walls.has(k)&&k!==key(goal))start=p;
+   else if(mode==="goal"&&!walls.has(k)&&k!==key(start))goal=p;
+   else if(mode==="wall"&&k!==key(start)&&k!==key(goal)){
+    walls.has(k)?walls.delete(k):walls.add(k);
+   }
+   path=[];visited=[];draw();
+  };
+  el.appendChild(d);
+ }
+}
+function findPath(){
+ const open=[start],came={},g={[key(start)]:0},f={[key(start)]:Math.abs(start[0]-goal[0])+Math.abs(start[1]-goal[1])},closed=new Set();
+ while(open.length){
+  open.sort((a,b)=>(f[key(a)]??Infinity)-(f[key(b)]??Infinity));
+  const cur=open.shift(),ck=key(cur);
+  if(closed.has(ck))continue;
+  if(ck===key(goal)){
+   path=[cur];let k=ck;
+   while(came[k]){k=came[k];path.unshift(k.split(",").map(Number));}
+   visited=[...closed];draw();
+   document.getElementById("status").textContent="Route found!";
+   document.getElementById("stats").textContent="Path length: "+(path.length-1)+" steps | Explored: "+visited.length;
+   return;
+  }
+  closed.add(ck);
+  for(const p of [[cur[0]-1,cur[1]],[cur[0]+1,cur[1]],[cur[0],cur[1]-1],[cur[0],cur[1]+1]]){
+   if(!inside(p)||walls.has(key(p))||closed.has(key(p)))continue;
+   const k=key(p),ng=g[ck]+1;
+   if(ng<(g[k]??Infinity)){
+    came[k]=ck;g[k]=ng;
+    f[k]=ng+Math.abs(p[0]-goal[0])+Math.abs(p[1]-goal[1]);
+    if(!open.some(x=>key(x)===k))open.push(p);
+   }
+  }
+ }
+ path=[];visited=[...closed];draw();
+ document.getElementById("status").textContent="No route found. Remove some obstacles.";
+ document.getElementById("stats").textContent="Explored: "+visited.length;
+}
+function randomWalls(){
+ walls.clear();
+ for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+  const k=`${r},${c}`;
+  if(k!==key(start)&&k!==key(goal)&&Math.random()<.22)walls.add(k);
+ }
+ path=[];visited=[];draw();
+}
+function resetGrid(){start=[1,1];goal=[18,18];walls.clear();path=[];visited=[];draw();document.getElementById("status").textContent="Grid reset.";}
+draw();
+</script>
+</body>
+</html>
